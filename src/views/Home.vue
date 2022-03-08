@@ -1,6 +1,12 @@
 <template>
-  <div class="home-box">
-    <TextEditor @update="updateEditor"></TextEditor>
+  <div class="home-content">
+    <div class="home-box">
+      <TextEditor @update="updateEditor"
+                  ref="textEditor"></TextEditor>
+    </div>
+    <button @click="save">保存数据</button>
+    <button @click="restore">还原数据</button>
+    <button @click="changeWay">切换展示效果</button>
   </div>
 </template>
 
@@ -11,29 +17,42 @@ import CanvasManager from "./CanvasManager";
 export default {
   name: "MyHome",
   components: {
-    TextEditor
+    TextEditor,
   },
   data() {
     return {
-      canvasManager: null
-    }
+      canvasManager: null,
+      editorChildren: [],
+    };
   },
   mounted() {
     this.$nextTick(() => {
       this.canvasManager = new CanvasManager(".home-box");
-    })
-    // const canvasManager = new CanvasManager(".home-box");
+    });
+    setTimeout(() => {
+      this.restore();
+    }, 1000);
   },
   methods: {
     updateEditor(editorChildren) {
       this.canvasManager?.update(editorChildren);
+    },
+    save() {
+      this.editorChildren = this.$refs.textEditor.getJSONText();
+    },
+    restore() {
+      const data = '[{"type":"paragraph","children":[{"text":"sdas","italic":true},{"italic":true,"text":"das","bold":true,"bgColor":"rgb(231, 95, 51)"}]}]';
+      this.$refs.textEditor.setJSONText(data);
+    },
+    changeWay() {
+      this.canvasManager.changeWay(90, this.editorChildren);
     }
-  }
-}
+  },
+};
 </script>
 
 <style>
-.home-box {
+.home-content {
   width: 100%;
   height: 100%;
   border: 1px solid #cecece;
