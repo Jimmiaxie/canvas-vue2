@@ -1,20 +1,22 @@
 <template>
-  <div style="border: 1px solid #ccc"
-       v-if="isEditorShow">
-    <Toolbar style="border-bottom: 1px solid #ccc"
-             :editorId="editorId"
-             :defaultConfig="toolbarConfig"
-             :mode="mode" />
-    <Editor style="height: 300px; overflow-y: hidden"
-            class="text-editor"
-            :editorId="editorId"
-            :defaultConfig="editorConfig"
-            :defaultContent="getDefaultContent"
-            @onChange="handleChange"
-            @onBlur="handleChange"
-            @customPaste="handleCustomPaste"
-            @mouseup.native.stop="handleMouseUp"
-            :mode="mode" />
+  <div style="border: 1px solid #ccc" v-if="isEditorShow">
+    <Toolbar
+      style="border-bottom: 1px solid #ccc"
+      :editorId="editorId"
+      :defaultConfig="toolbarConfig"
+      :mode="mode"
+    />
+    <Editor
+      style="height: 300px; overflow-y: hidden"
+      class="text-editor"
+      :editorId="editorId"
+      :defaultConfig="editorConfig"
+      :defaultContent="getDefaultContent"
+      @onBlur="handleChange"
+      @customPaste="handleCustomPaste"
+      @mouseup.native.stop="handleMouseUp"
+      :mode="mode"
+    />
   </div>
 </template>
 
@@ -27,7 +29,6 @@ import {
   removeEditor,
 } from "@wangeditor/editor-for-vue";
 import cloneDeep from "lodash.clonedeep";
-// import TextEditor from "./TextEditor";
 import { toolbarConfig, editorConfig } from "./EditorConfig";
 
 export default {
@@ -39,7 +40,12 @@ export default {
       editorId: Object.freeze("textEditor"),
       toolbarConfig,
       editorConfig,
-      defaultContent: [],
+      defaultContent: [
+        {
+          type: "paragraph",
+          children: [{ text: "", fontFamily: "黑体", fontSize: "32px" }],
+        },
+      ],
       isEditorShow: false,
     };
   },
@@ -48,32 +54,23 @@ export default {
       return cloneDeep(this.defaultContent); //【注意】深度拷贝 defaultContent ，否则会报错
     },
   },
-  mounted() {
-    this.$nextTick(() => {
-      const editor = getEditor(this.editorId);
-      editor.on("bind-tree", (data) => {
-        console.log(data);
-      });
-    });
-    // const editor = getEditor(this.editorId)
-    // this.editor = new TextEditor('#toolbar-container', '#text-container');
-  },
+  mounted() {},
   methods: {
     handleChange(editor) {
-      console.log(editor.children);
       this.$emit("update", editor.children);
     },
     handleCustomPaste(editor, event, callback) {
-      console.log("ClipboardEvent 粘贴事件对象", event);
-
       // 返回 false ，阻止默认粘贴行为
-      event.preventDefault();
-      callback(false); // 返回值（注意，vue 事件的返回值，不能用 return）
+      // event.preventDefault();
+      // callback(false); // 返回值（注意，vue 事件的返回值，不能用 return）
       // 返回 true ，继续默认的粘贴行为
-      // callback(true)
+      callback(true);
     },
-    handleMouseUp(e) {
-      console.log(e);
+    handleMouseUp() {
+      const editor = getEditor(this.editorId);
+      if (!window.node || !editor) return;
+      editor.dangerouslyInsertHtml(`<span>{{${window.node.resource_id}}}</span>`)
+      window.node = null;
     },
     getJSONText() {
       const editor = getEditor(this.editorId); // 获取 editor 实例（必须等它渲染完成）
@@ -108,5 +105,8 @@ export default {
 <style>
 .editor-box {
   border: 1px solid #cecece;
+}
+.text-editor .w-e-text-container [data-slate-editor] p {
+  margin: 0;
 }
 </style>

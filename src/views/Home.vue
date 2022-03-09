@@ -1,12 +1,12 @@
 <template>
   <div class="home-content">
     <div class="home-box">
-      <TextEditor @update="updateEditor"
-                  ref="textEditor"></TextEditor>
+      <TextEditor @update="updateEditor" ref="textEditor"></TextEditor>
     </div>
     <button @click="save">保存数据</button>
     <button @click="restore">还原数据</button>
-    <button @click="changeWay">切换展示效果</button>
+    <!-- <button @click="changeWay">切换展示效果</button> -->
+    <button @click="copyTreeNode">模拟拖拽树节点</button>
   </div>
 </template>
 
@@ -32,6 +32,7 @@ export default {
     setTimeout(() => {
       this.restore();
     }, 1000);
+
   },
   methods: {
     updateEditor(editorChildren) {
@@ -41,12 +42,17 @@ export default {
       this.editorChildren = this.$refs.textEditor.getJSONText();
     },
     restore() {
-      const data = '[{"type":"paragraph","children":[{"text":"sdas","italic":true},{"italic":true,"text":"das","bold":true,"bgColor":"rgb(231, 95, 51)"}]}]';
+      const data =
+        '[{"type":"paragraph","children":[{"text":"sdas","italic":true},{"italic":true,"text":"das","bold":true,"bgColor":"rgb(231, 95, 51)"}]}]';
       this.$refs.textEditor.setJSONText(data);
     },
     changeWay() {
       this.canvasManager.changeWay(90, this.editorChildren);
-    }
+    },
+    copyTreeNode() {
+      const node = { resource_id:"0_101", name:"Th03温湿度" }
+      window.node = node;
+    },
   },
 };
 </script>
