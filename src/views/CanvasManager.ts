@@ -1,9 +1,10 @@
-import { SlateElement, IrenderParam } from "./TextEditorInterface";
+import { SlateElement, IrenderParam, IEdtorItem } from "./TextEditorInterface";
 
 export default class CanvasManager {
   private canvas: HTMLCanvasElement = document.createElement("canvas");
   private context: any;
   private ratio: number = 1;
+  private ids: string[] = [];
   constructor(selector: string) {
     const el = document.querySelector(selector);
     if (!el) {
@@ -35,36 +36,40 @@ export default class CanvasManager {
   }
   public update(children: SlateElement[]) {
     this.clearCanvas();
-    let offLeft = 0, // 富文本编辑器中p标签padding:15px;
-      offTop = 0; // 富文本编辑器padding:10px;
+    let startX = 0, // 富文本编辑器中p标签padding:15px;
+      startY = 0; // 富文本编辑器padding:10px;
     // 每个item就是一行
     for (const item of children) {
-      const { lineHeight, textWidth } = this.getRowStyle(item);
+      const itemChildren = (item.children || []).map((child) =>
+        this.parseTextItem(child)
+      );
+      const { lineHeight, textWidth } = this.getRowStyle(itemChildren);
       const textAlign: CanvasTextAlign = item?.textAlign || "left"; // 对齐方式
-      const itemChildren = item.children || [];
       if (textAlign === "right") {
-        offLeft = this.canvas.width - textWidth;
+        startX = this.canvas.width - textWidth;
       } else if (textAlign === "center") {
-        offLeft = (this.canvas.width - textWidth) / 2;
+        startX = (this.canvas.width - textWidth) / 2;
       } else {
-        offLeft = 0;
+        startX = 0;
       }
+
       // 每个i就是单独的设置
       itemChildren.forEach((descendant, index) => {
         const { left, top } = this.renderItem({
           descendant,
-          offLeft,
-          offTop,
+          startX,
+          startY,
           lineHeight,
           textAlign,
           rowTextWidth: textWidth,
         });
-        offLeft = left;
+        startX = left;
         if (index === itemChildren.length - 1) {
-          offTop = top;
+          startY = top;
         }
       });
     }
+    console.log("匹配的数据是", this.ids);
   }
   /**
    * 逐个渲染
@@ -72,63 +77,46 @@ export default class CanvasManager {
    * @returns
    */
   private renderItem(param: IrenderParam) {
-    const { descendant, offLeft, offTop, lineHeight, textAlign, rowTextWidth } =
-      param;
-    const context = this.canvas.getContext("2d") as CanvasRenderingContext2D;
+    const { descendant, startX, startY, lineHeight } = param;
     const {
-      fontFamily = "Microsoft YaHei",
-      text,
+      font,
+      realText,
       bgColor = "#ffffff",
-      bold = false, // 加粗
       color = "#333",
-      fontSize = "14px",
-      italic = false, // 斜体
       underline = false, // 下划线
+      lineHeight: selfHeight = 21,
     } = descendant;
 
-    context.font = `${italic ? "italic" : "normal"} normal ${
-      bold ? " bold" : "normal"
-    }  ${fontSize}  ${fontFamily}`;
+    this.context.font = font;
     // 获取文字测量对象
-    let fillText = text;
-
-    // 测点处理
-    const matchLength = /\{\{[0-9|_]+?\}\}/g.exec(text);
-    if (matchLength && matchLength.length > 0) {
-      // TODO: 获取实时值数据
-      fillText = text.replace(/\{\{[0-9|_]+?\}\}/g, "666");
-    }
-
-    const measureTextWidth = context.measureText(fillText).width;
-    context.textBaseline = "alphabetic";
+    const measureTextWidth = this.context.measureText(realText).width;
+    this.context.textBaseline = "alphabetic";
 
     // 高度
-    const fontSizeValue = +fontSize.slice(0, fontSize.lastIndexOf("px"));
-    const selfHeight = fontSizeValue * 1.5;
-    const newTop = offTop + lineHeight;
+    const newTop = startY + lineHeight;
+    const newLeft = startX + measureTextWidth;
 
     // 背景颜色
-    context.fillStyle = bgColor;
-    context.fillRect(
-      offLeft,
-      offTop + (lineHeight - selfHeight) + selfHeight / 4,
+    this.context.fillStyle = bgColor;
+    this.context.fillRect(
+      startX,
+      startY + (lineHeight - selfHeight) + selfHeight / 4,
       measureTextWidth,
       selfHeight
     );
 
     // 文字及颜色
-    context.fillStyle = color;
-    context.fillText(fillText, offLeft, newTop);
+    this.context.fillStyle = color;
+    this.context.fillText(realText, startX, newTop);
 
-    const newLeft = offLeft + measureTextWidth;
     // 画下划线
     if (underline) {
       const bottom = newTop + 2;
-      context.strokeStyle = color;
-      context.beginPath();
-      context.moveTo(offLeft, bottom);
-      context.lineTo(newLeft, bottom);
-      context.stroke();
+      this.context.strokeStyle = color;
+      this.context.beginPath();
+      this.context.moveTo(startX, bottom);
+      this.context.lineTo(newLeft, bottom);
+      this.context.stroke();
     }
 
     return {
@@ -141,28 +129,14 @@ export default class CanvasManager {
    * @param row
    * @returns
    */
-  private getRowStyle(row: SlateElement) {
-    const context = this.canvas.getContext("2d") as CanvasRenderingContext2D;
+  private getRowStyle(children: IEdtorItem[]) {
     let maxFontSize = 0;
     let rowWidth = 0;
-    row.children.forEach((item: any) => {
-      const {
-        fontFamily = "Microsoft YaHei",
-        text,
-        bold = false, // 加粗
-        fontSize = "14px",
-        italic = false, // 斜体
-      } = item;
-      maxFontSize = Math.max(
-        maxFontSize,
-        +fontSize.slice(0, fontSize.lastIndexOf("px"))
-      );
-
-      context.font = `${italic ? "italic" : "normal"} normal ${
-        bold ? " bold" : "normal"
-      }  ${fontSize}  ${fontFamily}`;
-
-      rowWidth += context.measureText(text).width;
+    children.forEach((item: IEdtorItem) => {
+      const { realText, fontSize = "14px" } = item;
+      maxFontSize = Math.max(maxFontSize, this.getFontSizeValue(fontSize));
+      this.context.font = this.getFontStyle(item);
+      rowWidth += this.context.measureText(realText).width;
     });
 
     return {
@@ -171,7 +145,50 @@ export default class CanvasManager {
     };
   }
 
+  private getFontStyle(item: IEdtorItem): string {
+    const {
+      fontFamily = "Microsoft YaHei",
+      bold = false, // 加粗
+      fontSize = "14px",
+      italic = false, // 斜体
+    } = item;
+
+    return `${italic ? "italic" : "normal"} normal ${
+      bold ? " bold" : "normal"
+    }  ${fontSize}  ${fontFamily}`;
+  }
+
+  private getFontSizeValue(fontSize: string): number {
+    return parseFloat(fontSize);
+  }
+
+  private parseTextItem(item: IEdtorItem): IEdtorItem {
+    const newItem: IEdtorItem = JSON.parse(JSON.stringify(item));
+    const { fontSize = "14px", text } = newItem;
+    newItem.font = this.getFontStyle(newItem);
+    newItem.fontSizeValue = this.getFontSizeValue(fontSize);
+    newItem.realText = this.parseText(text);
+    newItem.lineHeight = newItem.fontSizeValue * 1.5;
+
+    return newItem;
+  }
+
+  private parseText(text: string) {
+    let fillText = text;
+    const hasReg = /\{\{[0-9|_]+?\}\}/g;
+    const replaceReg = /(?<={{)[0-9|_]+(?=}})/g;
+    // 数据处理， 只支持数字和下划线
+    const matchLength = hasReg.exec(text);
+    if (matchLength && matchLength.length > 0) {
+      const ids = text.match(replaceReg) || [];
+      this.ids.push(...ids);
+      fillText = fillText.replace(hasReg, "666");
+    }
+    return fillText;
+  }
+
   private clearCanvas() {
+    this.ids = [];
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 }

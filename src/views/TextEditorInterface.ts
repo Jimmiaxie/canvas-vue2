@@ -6,6 +6,7 @@ export interface SlateElement {
 
 export interface IEdtorItem {
   text: string;
+  realText?: String;
   fontFamily?: string;
   bgColor?: string;
   bold?: boolean;
@@ -13,12 +14,17 @@ export interface IEdtorItem {
   fontSize?: string;
   italic?: boolean; // 斜体
   underline?: boolean; // 下划线
+  fontSizeValue?: number;
+  font?: string;
+  lineHeight?: number;
+  ids?: string[];
 }
+
 
 export interface IrenderParam {
   descendant: IEdtorItem;
-  offLeft: number;
-  offTop: number;
+  startX: number;
+  startY: number;
   lineHeight: number;
   textAlign: CanvasTextAlign;
   rowTextWidth: number;

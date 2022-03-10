@@ -12,6 +12,7 @@
       :editorId="editorId"
       :defaultConfig="editorConfig"
       :defaultContent="getDefaultContent"
+      @onChange="handleChange"
       @onBlur="handleChange"
       @customPaste="handleCustomPaste"
       @mouseup.native.stop="handleMouseUp"
