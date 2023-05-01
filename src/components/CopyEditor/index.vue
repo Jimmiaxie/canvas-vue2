@@ -11,6 +11,7 @@
       class="text-editor"
       :editorId="editorId"
       :defaultConfig="editorConfig"
+      @copy.native="handleCopy"
       @onChange="handleChange"
       @customPaste="handleCustomPaste"
       :mode="mode"
@@ -41,13 +42,18 @@ export default {
       uuid: Date.now()
     };
   },
-  beforeCreate(){
+  beforeCreate() {
     registerModule();
   },
   methods: {
-    handleChange(editor) {
-      if(!editor) return;
+    handleCopy(event) {
+      const editor = getEditor(this.editorId); // 获取 editor 实例（必须等它渲染完成）
+      if (!editor) return;
 
+      editor.copyBindElemFlag = event.target.classList.contains("bind-active");
+    },
+    handleChange(editor) {
+      if (!editor) return;
       this.$emit("update", editor.children);
     },
     handleCustomPaste(editor, event, callback) {
@@ -55,18 +61,38 @@ export default {
       // event.preventDefault();
       // callback(false); // 返回值（注意，vue 事件的返回值，不能用 return）
       // 返回 true ，继续默认的粘贴行为
-      if(!event || !event.clipbardData) return;
 
-      const text = event.clipbardData.getData("text/plian");
+      if (!event || !event.clipboardData) {
+        if (editor.copyBindElemFlag) {
+          this.copyBindElemEvent(event, callback);
+        }
+        return;
+      }
 
-      editor.insertText(text);
+      const text = event.clipboardData.getData("text");
+      const fragment = event.clipboardData.getData(
+        "application/x-slate-fragment"
+      );
+
+      if (text && !fragment) {
+        editor.insertText(text);
+        event.preventDefault();
+        callback(false);
+        return;
+      }
+
+      if (editor.copyBindElemFlag) {
+        this.copyBindElemEvent(event, callback);
+      }
+    },
+    copyBindElemEvent(event, callback) {
+      this.addCustomNode();
       event.preventDefault();
       callback(false);
     },
     getJSONText() {
       const editor = getEditor(this.editorId); // 获取 editor 实例（必须等它渲染完成）
       if (editor == null) return "";
-      console.log(editor.getAllMenuKeys());
       const _json = JSON.stringify(editor.children);
       editor.clear();
       return _json;
@@ -80,17 +106,18 @@ export default {
       }
       this.defaultContent = jsonText;
     },
-    addCustomNode(){
+    addCustomNode() {
       const editor = getEditor(this.editorId);
-      if(!editor) return;
+      if (!editor) return;
 
       const uuid = Date.now();
       const node = {
-        type:"bind",
+        type: "bind",
         uuid: uuid,
-        name:`这是名字-${uuid}`
-      }
-editor.insertData(node);
+        name: `这是名字-${uuid}`,
+        children: [{ text: "" }] // void 元素必须有一个 children ，其中只有一个空字符串
+      };
+      editor.insertNode(node);
     }
   },
   beforeDestroy() {
@@ -100,7 +127,7 @@ editor.insertData(node);
     // 【注意】组件销毁时，及时销毁编辑器
     editor.destroy();
     removeEditor(this.editorId);
-  },
+  }
 };
 </script>
 
@@ -110,5 +137,10 @@ editor.insertData(node);
 }
 .text-editor .w-e-text-container [data-slate-editor] p {
   margin: 0;
+}
+
+.text-editor .bind-active {
+  background: #eb0808 !important;
+  color: #ffffff;
 }
 </style>
